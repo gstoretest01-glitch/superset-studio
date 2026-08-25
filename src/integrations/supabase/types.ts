@@ -45,8 +45,10 @@ export type Database = {
           body: string | null
           border_color: string | null
           chart_id: number | null
+          chart_kind: string
           chart_name: string | null
           created_at: string
+          embed_uuid: string | null
           height_px: number
           height_sm_px: number
           hide_on_mobile: boolean
@@ -56,6 +58,7 @@ export type Database = {
           radius_px: number | null
           render_mode: string
           report_id: string
+          row_limit: number
           show_title: boolean
           span_lg: number
           span_md: number
@@ -69,8 +72,10 @@ export type Database = {
           body?: string | null
           border_color?: string | null
           chart_id?: number | null
+          chart_kind?: string
           chart_name?: string | null
           created_at?: string
+          embed_uuid?: string | null
           height_px?: number
           height_sm_px?: number
           hide_on_mobile?: boolean
@@ -80,6 +85,7 @@ export type Database = {
           radius_px?: number | null
           render_mode?: string
           report_id: string
+          row_limit?: number
           show_title?: boolean
           span_lg?: number
           span_md?: number
@@ -93,8 +99,10 @@ export type Database = {
           body?: string | null
           border_color?: string | null
           chart_id?: number | null
+          chart_kind?: string
           chart_name?: string | null
           created_at?: string
+          embed_uuid?: string | null
           height_px?: number
           height_sm_px?: number
           hide_on_mobile?: boolean
@@ -104,6 +112,7 @@ export type Database = {
           radius_px?: number | null
           render_mode?: string
           report_id?: string
+          row_limit?: number
           show_title?: boolean
           span_lg?: number
           span_md?: number
