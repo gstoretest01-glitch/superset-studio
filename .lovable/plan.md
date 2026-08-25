@@ -24,6 +24,39 @@ Còn thiếu để "chạy thật": chưa có máy chủ Superset, chưa lưu t�
 
 ## Phần C — Bổ sung tính năng app (tôi build)
 
+### C0. Cấu hình giao diện riêng cho từng biểu đồ (ưu tiên cao — hiện chưa có)
+
+Hiện mỗi khối chỉ chỉnh được: loại biểu đồ, màu nền/viền/bo góc/đệm, hiện–ẩn tiêu đề, số cột và chiều cao theo breakpoint. Màu chuỗi dữ liệu, trục, nhãn, định dạng số đều thừa hưởng từ theme chung. Cần nâng thành cấu hình riêng cho từng khối.
+
+**Lưu trữ:** thêm cột `style_config` (JSON) vào bảng `report_blocks` — mỗi khối tự giữ cấu hình riêng, để trống thì kế thừa theme.
+
+**Nhóm tuỳ chọn dùng chung mọi loại biểu đồ**
+- Bảng màu: kế thừa theme / chọn bảng màu khác / gán màu thủ công cho từng chuỗi.
+- Tiêu đề & mô tả phụ: nội dung, cỡ chữ, canh lề, màu.
+- Chú giải (legend): ẩn/hiện, vị trí (trên/dưới/phải), cỡ chữ.
+- Định dạng số: dấu phân cách, số chữ số thập phân, tiền tố/hậu tố (đ, %, VND), rút gọn (k/tr/tỷ) bật–tắt.
+- Tooltip: bật/tắt, hiện tổng, hiện phần trăm.
+- Trạng thái rỗng và thông báo lỗi: chữ tuỳ biến.
+
+**Tuỳ chọn theo từng loại biểu đồ**
+- Cột: dọc/ngang, chồng (stacked) / cạnh nhau / 100%, bo góc thanh, độ rộng thanh, nhãn giá trị trên thanh, sắp xếp giảm/tăng, giới hạn top-N + gộp "Khác".
+- Đường: độ dày nét, nét liền/đứt, bo mềm hay gãy, hiện điểm nút, đường xu hướng, đánh dấu giá trị min/max.
+- Vùng: độ mờ nền, chồng vùng, gradient.
+- Tròn/Donut: bán kính trong, khoảng cách lát, nhãn hiện %, hiện tổng ở giữa, top-N.
+- KPI: nhãn, cỡ số, màu theo ngưỡng, so sánh kỳ trước (mũi tên tăng/giảm), biểu đồ tia (sparkline) nền.
+- Bảng: chọn cột hiện, đổi tên tiêu đề cột, canh lề, thanh dữ liệu trong ô, tô màu theo điều kiện, cố định hàng tiêu đề, phân trang.
+- Trục (cho cột/đường/vùng): hiện–ẩn từng trục, tiêu đề trục, xoay nhãn trục X, min/max trục Y, thang log, lưới ngang/dọc.
+
+**Trải nghiệm cấu hình**
+- Bảng thuộc tính bên phải chia tab: **Dữ liệu / Biểu đồ / Giao diện / Bố cục**; tab Biểu đồ đổi nội dung theo loại đang chọn.
+- Xem trước cập nhật tức thì khi chỉnh.
+- Nút "Về mặc định theme" cho từng nhóm, và nút **Lưu thành mẫu (preset)** để tái dùng cho khối khác.
+- Sao chép cấu hình giao diện từ khối này sang khối khác.
+
+**Kỹ thuật:** mở rộng `ChartRenderer` nhận thêm `style` (kiểu `BlockStyle`) và ưu tiên nó trước `theme`; định nghĩa `BlockStyle` trong `src/lib/report-types.ts` kèm giá trị mặc định suy ra từ theme.
+
+
+
 ### C1. Nguồn dữ liệu đầy đủ
 - Duyệt theo **dashboard → chart**, theo **dataset**, theo **tag**; tìm kiếm, phân trang, xem trước dữ liệu.
 - Hỗ trợ khối **truy vấn tùy chỉnh**: chọn dataset + metric + dimension + filter, gọi `/api/v1/chart/data` — không cần tạo chart trong Superset.
