@@ -8,7 +8,7 @@ import type { ReportBlock, ReportTheme } from "@/lib/report-types";
 
 export type BlockData = {
   columns: string[];
-  rows: Array<Record<string, unknown>>;
+  rows: ChartRow[];
   error: string | null;
 };
 

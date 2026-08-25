@@ -21,7 +21,7 @@ import { formatNumber, inferSeries, type ReportTheme } from "@/lib/report-types"
 type Props = {
   kind: string;
   columns: string[];
-  rows: Array<Record<string, unknown>>;
+  rows: ChartRow[];
   theme: ReportTheme;
   compact?: boolean;
 };

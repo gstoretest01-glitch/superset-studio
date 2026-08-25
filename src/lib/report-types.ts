@@ -86,7 +86,9 @@ export function isNumeric(value: unknown): boolean {
 }
 
 /** Suy luận trục x và các chuỗi số từ bảng dữ liệu trả về từ Superset. */
-export function inferSeries(columns: string[], rows: Array<Record<string, unknown>>) {
+export type ChartRow = Record<string, string | number | boolean | null>;
+
+export function inferSeries(columns: string[], rows: ChartRow[]) {
   if (rows.length === 0) return { xKey: columns[0] ?? "", numericKeys: [] as string[] };
   const first = rows[0]!;
   const numericKeys = columns.filter((c) => isNumeric(first[c]));
