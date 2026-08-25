@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { ChartRenderer } from "./ChartRenderer";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ReportBlock, ReportTheme } from "@/lib/report-types";
+import type { ChartRow, ReportBlock, ReportTheme } from "@/lib/report-types";
 
 export type BlockData = {
   columns: string[];

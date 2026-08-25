@@ -16,7 +16,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { formatNumber, inferSeries, type ReportTheme } from "@/lib/report-types";
+import { formatNumber, inferSeries, type ChartRow, type ReportTheme } from "@/lib/report-types";
 
 type Props = {
   kind: string;
