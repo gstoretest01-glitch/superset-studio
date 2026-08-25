@@ -91,10 +91,11 @@ Hiện mỗi khối chỉ chỉnh được: loại biểu đồ, màu nền/vi�
 - Gửi báo cáo định kỳ qua email (dùng lịch của Lovable Cloud gọi endpoint nội bộ).
 
 ## Thứ tự đề xuất
-1. Phần A + B — có Superset thật, thông kết nối. (bạn + tôi hỗ trợ)
-2. C1 + C2 — nguồn dữ liệu đầy đủ và bộ lọc. Đây là bước biến app thành "báo cáo động".
-3. C3 + C4 — trải nghiệm dựng báo cáo và phủ hết loại biểu đồ.
-4. C5 + C6 + C7 — hoàn thiện, chia sẻ, vận hành.
+1. **C0 — cấu hình giao diện riêng từng biểu đồ.** Làm được ngay, không cần Superset thật (dùng dữ liệu mẫu để xem trước).
+2. Phần A + B — có Superset thật, thông kết nối. (bạn + tôi hỗ trợ)
+3. C1 + C2 — nguồn dữ liệu đầy đủ và bộ lọc. Đây là bước biến app thành "báo cáo động".
+4. C3 + C4 — trải nghiệm dựng báo cáo và phủ hết loại biểu đồ.
+5. C5 + C6 + C7 — hoàn thiện, chia sẻ, vận hành.
 
 ## Ghi chú kỹ thuật
 - Mọi lời gọi Superset đều qua server function; trình duyệt không bao giờ thấy tài khoản dịch vụ.
