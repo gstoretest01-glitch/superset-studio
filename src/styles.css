@@ -166,3 +166,36 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-strong) transparent;
 }
+
+/* ── Lưới báo cáo responsive (do app tự quản lý, không phụ thuộc Superset) ── */
+.rs-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--rs-gap, 16px);
+  width: 100%;
+}
+
+.rs-block {
+  grid-column: span var(--span-sm, 12) / span var(--span-sm, 12);
+  min-width: 0;
+  height: var(--rs-h-sm, 280px);
+}
+
+@media (min-width: 768px) {
+  .rs-block {
+    grid-column: span var(--span-md, 6) / span var(--span-md, 6);
+    height: var(--rs-h, 340px);
+  }
+}
+
+@media (min-width: 1180px) {
+  .rs-block {
+    grid-column: span var(--span-lg, 6) / span var(--span-lg, 6);
+  }
+}
+
+@media (max-width: 767px) {
+  .rs-block[data-hide-mobile="true"] {
+    display: none;
+  }
+}
