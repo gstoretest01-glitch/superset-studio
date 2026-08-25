@@ -91,35 +91,14 @@ export const getGuestToken = createServerFn({ method: "POST" })
 export const getPublicBlockData = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ blockId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const { publicClient, credsFromConnectionRow } = await import("./superset-creds.server");
+    const { resolvePublicBlockContext } = await import("./superset-creds.server");
     const { fetchSupersetChartData } = await import("./superset.server");
-    const supabase = publicClient();
 
-    const { data: block } = await supabase
-      .from("report_blocks")
-      .select("chart_id, row_limit, report_id")
-      .eq("id", data.blockId)
-      .maybeSingle();
-    if (!block?.chart_id) return { columns: [], rows: [], error: "Không tìm thấy khối biểu đồ." };
-
-    const { data: report } = await supabase
-      .from("reports")
-      .select("is_published, connection_id")
-      .eq("id", block.report_id)
-      .maybeSingle();
-    if (!report?.is_published) return { columns: [], rows: [], error: "Báo cáo chưa được xuất bản." };
-    if (!report.connection_id) return { columns: [], rows: [], error: "Báo cáo chưa gắn kết nối Superset." };
-
-    const { data: conn } = await supabase
-      .from("superset_connections")
-      .select("base_url, service_username, auth_provider")
-      .eq("id", report.connection_id)
-      .maybeSingle();
-    const creds = credsFromConnectionRow(conn);
-    if ("error" in creds) return { columns: [], rows: [], error: creds.error };
+    const ctx = await resolvePublicBlockContext(data.blockId);
+    if ("error" in ctx) return { columns: [], rows: [], error: ctx.error };
 
     try {
-      const res = await fetchSupersetChartData(creds, block.chart_id, block.row_limit);
+      const res = await fetchSupersetChartData(ctx.creds, ctx.chartId, ctx.rowLimit);
       return { ...res, error: null };
     } catch (err) {
       return {
