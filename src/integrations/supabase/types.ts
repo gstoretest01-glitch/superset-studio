@@ -14,16 +14,306 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      report_blocks: {
+        Row: {
+          background_color: string | null
+          block_type: string
+          body: string | null
+          border_color: string | null
+          chart_id: number | null
+          chart_name: string | null
+          created_at: string
+          height_px: number
+          height_sm_px: number
+          hide_on_mobile: boolean
+          id: string
+          padding_px: number
+          position: number
+          radius_px: number | null
+          render_mode: string
+          report_id: string
+          show_title: boolean
+          span_lg: number
+          span_md: number
+          span_sm: number
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          background_color?: string | null
+          block_type?: string
+          body?: string | null
+          border_color?: string | null
+          chart_id?: number | null
+          chart_name?: string | null
+          created_at?: string
+          height_px?: number
+          height_sm_px?: number
+          hide_on_mobile?: boolean
+          id?: string
+          padding_px?: number
+          position?: number
+          radius_px?: number | null
+          render_mode?: string
+          report_id: string
+          show_title?: boolean
+          span_lg?: number
+          span_md?: number
+          span_sm?: number
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          background_color?: string | null
+          block_type?: string
+          body?: string | null
+          border_color?: string | null
+          chart_id?: number | null
+          chart_name?: string | null
+          created_at?: string
+          height_px?: number
+          height_sm_px?: number
+          hide_on_mobile?: boolean
+          id?: string
+          padding_px?: number
+          position?: number
+          radius_px?: number | null
+          render_mode?: string
+          report_id?: string
+          show_title?: boolean
+          span_lg?: number
+          span_md?: number
+          span_sm?: number
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_blocks_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_themes: {
+        Row: {
+          accent_color: string
+          border_color: string
+          created_at: string
+          description: string | null
+          font_family: string
+          gap_px: number
+          id: string
+          is_default: boolean
+          muted_text_color: string
+          name: string
+          page_color: string
+          palette: string[]
+          radius_px: number
+          surface_color: string
+          text_color: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string
+          border_color?: string
+          created_at?: string
+          description?: string | null
+          font_family?: string
+          gap_px?: number
+          id?: string
+          is_default?: boolean
+          muted_text_color?: string
+          name: string
+          page_color?: string
+          palette?: string[]
+          radius_px?: number
+          surface_color?: string
+          text_color?: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string
+          border_color?: string
+          created_at?: string
+          description?: string | null
+          font_family?: string
+          gap_px?: number
+          id?: string
+          is_default?: boolean
+          muted_text_color?: string
+          name?: string
+          page_color?: string
+          palette?: string[]
+          radius_px?: number
+          surface_color?: string
+          text_color?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          connection_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          grid_columns: number
+          id: string
+          is_published: boolean
+          max_width_px: number
+          slug: string
+          theme_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          grid_columns?: number
+          id?: string
+          is_published?: boolean
+          max_width_px?: number
+          slug: string
+          theme_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          grid_columns?: number
+          id?: string
+          is_published?: boolean
+          max_width_px?: number
+          slug?: string
+          theme_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "superset_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "report_themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      superset_connections: {
+        Row: {
+          auth_provider: string
+          base_url: string
+          created_at: string
+          id: string
+          is_default: boolean
+          last_checked_at: string | null
+          last_status: string | null
+          name: string
+          service_username: string
+          updated_at: string
+        }
+        Insert: {
+          auth_provider?: string
+          base_url: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          last_checked_at?: string | null
+          last_status?: string | null
+          name: string
+          service_username?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_provider?: string
+          base_url?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          last_checked_at?: string | null
+          last_status?: string | null
+          name?: string
+          service_username?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_edit: { Args: { _user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +440,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "editor", "viewer"],
+    },
   },
 } as const
