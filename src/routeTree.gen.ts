@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedConnectionsRouteImport } from './routes/_authenticated/connections'
 import { Route as AuthenticatedThemesRouteImport } from './routes/_authenticated/themes'
+import { Route as RSlugRouteImport } from './routes/r.$slug'
 import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports.index'
 import { Route as AuthenticatedReportsIdRouteImport } from './routes/_authenticated/reports.$id'
 
@@ -42,6 +43,11 @@ const AuthenticatedThemesRoute = AuthenticatedThemesRouteImport.update({
   path: '/themes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const RSlugRoute = RSlugRouteImport.update({
+  id: '/r/$slug',
+  path: '/r/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedReportsIndexRoute =
   AuthenticatedReportsIndexRouteImport.update({
     id: '/reports/',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/connections': typeof AuthenticatedConnectionsRoute
   '/themes': typeof AuthenticatedThemesRoute
+  '/r/$slug': typeof RSlugRoute
   '/reports/$id': typeof AuthenticatedReportsIdRoute
   '/reports/': typeof AuthenticatedReportsIndexRoute
 }
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/connections': typeof AuthenticatedConnectionsRoute
   '/themes': typeof AuthenticatedThemesRoute
+  '/r/$slug': typeof RSlugRoute
   '/reports/$id': typeof AuthenticatedReportsIdRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
 }
@@ -77,15 +85,29 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/connections': typeof AuthenticatedConnectionsRoute
   '/_authenticated/themes': typeof AuthenticatedThemesRoute
+  '/r/$slug': typeof RSlugRoute
   '/_authenticated/reports/$id': typeof AuthenticatedReportsIdRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/connections' | '/themes' | '/reports/$id' | '/reports/'
+    | '/'
+    | '/auth'
+    | '/connections'
+    | '/themes'
+    | '/r/$slug'
+    | '/reports/$id'
+    | '/reports/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/connections' | '/themes' | '/reports/$id' | '/reports'
+  to:
+    | '/'
+    | '/auth'
+    | '/connections'
+    | '/themes'
+    | '/r/$slug'
+    | '/reports/$id'
+    | '/reports'
   id:
     | '__root__'
     | '/'
@@ -93,6 +115,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/connections'
     | '/_authenticated/themes'
+    | '/r/$slug'
     | '/_authenticated/reports/$id'
     | '/_authenticated/reports/'
   fileRoutesById: FileRoutesById
@@ -101,6 +124,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  RSlugRoute: typeof RSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -140,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedThemesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/r/$slug': {
+      id: '/r/$slug'
+      path: '/r/$slug'
+      fullPath: '/r/$slug'
+      preLoaderRoute: typeof RSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/reports/': {
       id: '/_authenticated/reports/'
       path: '/reports'
@@ -178,6 +209,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  RSlugRoute: RSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
