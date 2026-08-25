@@ -298,7 +298,7 @@ function BuilderPage() {
                 step={20}
                 disabled={!canEdit}
                 onValueChange={([v]) => qc.setQueryData(["report", id], { ...r, max_width_px: v })}
-                onValueCommit={([v]) => updateReport.mutate({ max_width_px: v })}
+                onValueCommit={([v]) => updateReport.mutate({ max_width_px: v ?? r.max_width_px })}
               />
             </div>
             <div className="space-y-1.5">
@@ -445,7 +445,7 @@ function BuilderPage() {
                       max={5000}
                       step={10}
                       disabled={!canEdit}
-                      onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { row_limit: v } })}
+                      onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { row_limit: v ?? selected.row_limit } })}
                     />
                   </div>
                 </>
@@ -475,7 +475,7 @@ function BuilderPage() {
                           old?.map((b) => (b.id === selected.id ? { ...b, [key]: v } : b)),
                         )
                       }
-                      onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { [key]: v } })}
+                      onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { [key]: v ?? selected[key] } })}
                     />
                   </div>
                 ))}
@@ -492,7 +492,7 @@ function BuilderPage() {
                         old?.map((b) => (b.id === selected.id ? { ...b, height_px: v } : b)),
                       )
                     }
-                    onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { height_px: v } })}
+                    onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { height_px: v ?? selected.height_px } })}
                   />
                 </div>
                 <div className="space-y-1">
@@ -508,7 +508,7 @@ function BuilderPage() {
                         old?.map((b) => (b.id === selected.id ? { ...b, height_sm_px: v } : b)),
                       )
                     }
-                    onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { height_sm_px: v } })}
+                    onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { height_sm_px: v ?? selected.height_sm_px } })}
                   />
                 </div>
               </div>
