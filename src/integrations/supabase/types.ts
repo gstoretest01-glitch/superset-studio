@@ -313,6 +313,16 @@ export type Database = {
     }
     Functions: {
       can_edit: { Args: { _user_id: string }; Returns: boolean }
+      get_public_block_context: {
+        Args: { _block_id: string }
+        Returns: {
+          auth_provider: string
+          base_url: string
+          chart_id: number
+          row_limit: number
+          service_username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
