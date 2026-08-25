@@ -159,7 +159,7 @@ export async function listSupersetCharts(
 
 export type ChartDataResult = {
   columns: string[];
-  rows: Array<Record<string, unknown>>;
+  rows: Array<Record<string, string | number | boolean | null>>;
   vizType: string | null;
 };
 
@@ -177,7 +177,7 @@ export async function fetchSupersetChartData(
   }
   const body = (await res.json()) as {
     result?: Array<{
-      data?: Array<Record<string, unknown>>;
+      data?: Array<Record<string, string | number | boolean | null>>;
       colnames?: string[];
       query?: string;
     }>;
