@@ -3,7 +3,8 @@ import type { Layout, LayoutItem } from "react-grid-layout/legacy";
 import "react-grid-layout/css/styles.css";
 
 import { BlockCard, VIEWPORT_WIDTH, type BlockFetcher, type Viewport } from "./BlockCards";
-import { resolveReportLayout, type BlockLayout, type GridPos, type ReportBlock, type ReportTheme } from "@/lib/report-types";
+import { ContainerBlock } from "./ContainerBlock";
+import { isContainerBlock, resolveReportLayout, type BlockLayout, type GridPos, type ReportBlock, type ReportTheme } from "@/lib/report-types";
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
@@ -35,13 +36,16 @@ export function GridCanvas({
   canEdit: boolean;
   onLayoutCommit: (next: Array<{ id: string; layout: BlockLayout }>) => void;
 }) {
-  const layouts = resolveReportLayout(blocks);
-  const rglLayout: Layout = blocks.map((b) => toLayoutItem(b.id, layouts.get(b.id)![viewport]!));
+  // Lưới ngoài chỉ định vị block cấp gốc — block con của Tabs/Row/Column được chính container
+  // tự bố cục bên trong (xem ContainerBlock), không có layout x/y riêng.
+  const rootBlocks = blocks.filter((b) => b.parent_block_id == null);
+  const layouts = resolveReportLayout(rootBlocks);
+  const rglLayout: Layout = rootBlocks.map((b) => toLayoutItem(b.id, layouts.get(b.id)![viewport]!));
 
   const commit = (current: Layout) => {
     const next = current
       .map((item) => {
-        const block = blocks.find((b) => b.id === item.i);
+        const block = rootBlocks.find((b) => b.id === item.i);
         if (!block) return null;
         const prevPos = layouts.get(block.id)![viewport]!;
         const nextPos: GridPos = { x: item.x, y: item.y, w: item.w, h: item.h };
@@ -67,7 +71,7 @@ export function GridCanvas({
       }}
     >
       <div className="p-3 sm:p-5" style={{ maxWidth: maxWidth ? `${maxWidth}px` : undefined, marginInline: "auto" }}>
-        {blocks.length === 0 ? (
+        {rootBlocks.length === 0 ? (
           <div
             className="flex h-48 items-center justify-center rounded-xl border border-dashed text-sm"
             style={{ borderColor: theme.border_color, color: theme.muted_text_color }}
@@ -92,7 +96,7 @@ export function GridCanvas({
             onDragStop={(current) => commit(current)}
             onResizeStop={(current) => commit(current)}
           >
-            {blocks.map((block) => {
+            {rootBlocks.map((block) => {
               if (viewport === "sm" && block.hide_on_mobile) {
                 return (
                   <div key={block.id} style={{ display: "none" }}>
@@ -118,7 +122,18 @@ export function GridCanvas({
                         : undefined
                     }
                   >
-                    <BlockCard block={block} theme={theme} fetcher={fetcher} enabled={true} />
+                    {isContainerBlock(block) ? (
+                      <ContainerBlock
+                        block={block}
+                        allBlocks={blocks}
+                        theme={theme}
+                        fetcher={fetcher}
+                        {...(selectedId !== undefined ? { selectedId } : {})}
+                        {...(onSelect ? { onSelect } : {})}
+                      />
+                    ) : (
+                      <BlockCard block={block} theme={theme} fetcher={fetcher} enabled={true} />
+                    )}
                   </div>
                 </div>
               );

@@ -3,9 +3,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
+  Columns2,
   ExternalLink,
+  Minus,
   Monitor,
   Plus,
+  Rows,
   Smartphone,
   Tablet,
   Trash2,
@@ -36,7 +39,9 @@ import { resolveStyle, type BlockStyle } from "@/lib/block-style";
 import {
   CHART_KINDS,
   FALLBACK_THEME,
+  isContainerBlock,
   planNewBlockLayout,
+  resolveContainerConfig,
   resolveReportLayout,
   type BlockLayout,
   type Report,
@@ -100,7 +105,9 @@ function BuilderPage() {
         .eq("report_id", id)
         .order("position");
       if (error) throw error;
-      return data as ReportBlock[];
+      // types.ts chưa có cột container_config/parent_block_id/parent_slot — Lovable Cloud sẽ
+      // tự regenerate sau khi migration 20260826120000 được áp dụng. Cast tạm qua unknown.
+      return data as unknown as ReportBlock[];
     },
   });
 
@@ -151,13 +158,24 @@ function BuilderPage() {
 
   const addBlock = useMutation({
     mutationFn: async (patch: Partial<ReportBlock>) => {
-      const position = (blocks.data?.length ?? 0) + 1;
       const existing = blocks.data ?? [];
-      const othersLayout = [...resolveReportLayout(existing).values()];
-      const layout = planNewBlockLayout(patch.block_type ?? "superset_chart", othersLayout);
+      // Block con của container (Tabs/Row/Column) không có layout x/y riêng — cha tự bố cục.
+      const isChild = patch.parent_block_id != null;
+      const siblingsForPosition = isChild
+        ? existing.filter((b) => b.parent_block_id === patch.parent_block_id && b.parent_slot === patch.parent_slot)
+        : existing.filter((b) => b.parent_block_id == null);
+      const position = siblingsForPosition.length + 1;
+      const insertPatch: Partial<ReportBlock> = { report_id: id, position, ...patch };
+      if (!isChild) {
+        const rootBlocks = existing.filter((b) => b.parent_block_id == null);
+        const othersLayout = [...resolveReportLayout(rootBlocks).values()];
+        insertPatch.layout = planNewBlockLayout(patch.block_type ?? "superset_chart", othersLayout) as unknown as ReportBlock["layout"];
+      }
+      // types.ts chưa có cột container_config/parent_block_id/parent_slot — cast tạm qua unknown
+      // cho đến khi Lovable Cloud regenerate sau khi migration được áp dụng.
       const { data, error } = await supabase
         .from("report_blocks")
-        .insert({ report_id: id, position, layout: layout as unknown as ReportBlock["layout"], ...patch })
+        .insert(insertPatch as unknown as never)
         .select("id")
         .single();
       if (error) throw error;
@@ -172,7 +190,10 @@ function BuilderPage() {
 
   const updateBlock = useMutation({
     mutationFn: async ({ blockId, patch }: { blockId: string; patch: Partial<ReportBlock> }) => {
-      const { error } = await supabase.from("report_blocks").update(patch).eq("id", blockId);
+      const { error } = await supabase
+        .from("report_blocks")
+        .update(patch as unknown as never)
+        .eq("id", blockId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["blocks", id] }),
@@ -461,6 +482,62 @@ function BuilderPage() {
                   })
                 }
               />
+
+              <div className="space-y-1.5 border-t border-border pt-3">
+                <span className="text-xs font-medium text-muted-foreground">Bố cục</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() =>
+                      addBlock.mutate({
+                        block_type: "tabs",
+                        title: "Các thẻ",
+                        container_config: { tabs: [{ id: "tab-1", label: "Tab 1" }, { id: "tab-2", label: "Tab 2" }] } as unknown as ReportBlock["container_config"],
+                      })
+                    }
+                  >
+                    <Columns2 className="mr-1 h-3.5 w-3.5" /> Các thẻ
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() =>
+                      addBlock.mutate({
+                        block_type: "row",
+                        title: "Hàng",
+                        container_config: { sizes: [50, 50] } as unknown as ReportBlock["container_config"],
+                      })
+                    }
+                  >
+                    <Rows className="mr-1 h-3.5 w-3.5" /> Hàng
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() =>
+                      addBlock.mutate({
+                        block_type: "column",
+                        title: "Cột",
+                        container_config: { sizes: [50, 50] } as unknown as ReportBlock["container_config"],
+                      })
+                    }
+                  >
+                    <Columns2 className="mr-1 h-3.5 w-3.5 rotate-90" /> Cột
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => addBlock.mutate({ block_type: "divider", title: null })}
+                  >
+                    <Minus className="mr-1 h-3.5 w-3.5" /> Đường kẻ
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </aside>
@@ -508,7 +585,62 @@ function BuilderPage() {
                 />
               </div>
 
-              {!isChartBlock(selected) && (
+              {isContainerBlock(selected) && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {selected.block_type === "tabs" ? "Các thẻ" : selected.block_type === "row" ? "Hàng" : "Cột"}
+                  </span>
+                  {(() => {
+                    const config = resolveContainerConfig(selected);
+                    const slots = "tabs" in config ? config.tabs.map((t) => ({ id: t.id, label: t.label })) : config.sizes.map((_, i) => ({ id: String(i), label: `Ô ${i + 1}` }));
+                    return (
+                      <div className="space-y-2">
+                        {slots.map((slot) => (
+                          <div key={slot.id} className="space-y-1 rounded-md border border-border p-2">
+                            <span className="text-[11px] text-muted-foreground">{slot.label}</span>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="text-[11px]"
+                                disabled={!canEdit}
+                                onClick={() =>
+                                  addBlock.mutate({
+                                    block_type: "heading",
+                                    title: "Tiêu đề mục",
+                                    parent_block_id: selected.id,
+                                    parent_slot: slot.id,
+                                  })
+                                }
+                              >
+                                <Type className="mr-1 h-3 w-3" /> Văn bản
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="text-[11px]"
+                                disabled={!canEdit || !r.connection_id}
+                                onClick={() =>
+                                  addBlock.mutate({
+                                    block_type: "superset_chart",
+                                    title: "Biểu đồ mới",
+                                    parent_block_id: selected.id,
+                                    parent_slot: slot.id,
+                                  })
+                                }
+                              >
+                                <Plus className="mr-1 h-3 w-3" /> Biểu đồ trống
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {!isChartBlock(selected) && !isContainerBlock(selected) && (
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Nội dung</Label>
                   <Textarea

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { BlockCard, VIEWPORT_WIDTH, type BlockFetcher, type Viewport } from "./BlockCards";
-import { resolveReportLayout, type ReportBlock, type ReportTheme } from "@/lib/report-types";
+import { ContainerBlock } from "./ContainerBlock";
+import { isContainerBlock, resolveReportLayout, type ReportBlock, type ReportTheme } from "@/lib/report-types";
 
 const ROW_HEIGHT = 20;
 const BREAKPOINT_QUERIES: Record<Exclude<Viewport, "lg">, string> = {
@@ -45,8 +46,9 @@ export function StaticCanvas({
   maxWidth?: number;
 }) {
   const viewport = useViewport();
-  const layouts = resolveReportLayout(blocks);
-  const visibleBlocks = blocks.filter((b) => !(viewport === "sm" && b.hide_on_mobile));
+  const rootBlocks = blocks.filter((b) => b.parent_block_id == null);
+  const layouts = resolveReportLayout(rootBlocks);
+  const visibleBlocks = rootBlocks.filter((b) => !(viewport === "sm" && b.hide_on_mobile));
 
   let maxY = 0;
   const positions = visibleBlocks.map((block) => {
@@ -95,7 +97,11 @@ export function StaticCanvas({
                     boxSizing: "border-box",
                   }}
                 >
-                  <BlockCard block={block} theme={theme} fetcher={fetcher} enabled={true} />
+                  {isContainerBlock(block) ? (
+                    <ContainerBlock block={block} allBlocks={blocks} theme={theme} fetcher={fetcher} />
+                  ) : (
+                    <BlockCard block={block} theme={theme} fetcher={fetcher} enabled={true} />
+                  )}
                 </div>
               );
             })}

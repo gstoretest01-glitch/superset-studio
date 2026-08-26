@@ -58,7 +58,9 @@ function PublicReportPage() {
 
       return {
         report: report as Report,
-        blocks: (blocks ?? []) as ReportBlock[],
+        // types.ts chưa có cột container_config/parent_block_id/parent_slot — cast tạm qua
+        // unknown cho đến khi Lovable Cloud regenerate sau khi migration được áp dụng.
+        blocks: (blocks ?? []) as unknown as ReportBlock[],
         theme: (theme as ReportTheme | null) ?? FALLBACK_THEME,
       };
     },

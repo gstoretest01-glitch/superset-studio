@@ -48,7 +48,41 @@ export type ReportBlock = {
   adhoc_groupby: Json;
   adhoc_filters: Json;
   adhoc_order_desc: boolean;
+  container_config: Json;
+  parent_block_id: string | null;
+  parent_slot: string | null;
 };
+
+/** Các loại block đóng vai trò "container" (chứa block con) thay vì tự vẽ dữ liệu. */
+export const CONTAINER_TYPES = ["tabs", "row", "column"] as const;
+export type ContainerType = (typeof CONTAINER_TYPES)[number];
+
+export function isContainerBlock(block: ReportBlock): boolean {
+  return (CONTAINER_TYPES as readonly string[]).includes(block.block_type);
+}
+
+export type TabDef = { id: string; label: string };
+export type ContainerConfig =
+  | { tabs: TabDef[] }
+  | { sizes: number[] };
+
+/** Đọc `container_config` đã lưu, trả cấu hình mặc định hợp lý nếu rỗng/hỏng. */
+export function resolveContainerConfig(block: ReportBlock): ContainerConfig {
+  const raw = block.container_config;
+  if (block.block_type === "tabs") {
+    const tabs = raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>)["tabs"])
+      ? ((raw as Record<string, unknown>)["tabs"] as unknown[]).filter(
+          (t): t is TabDef => !!t && typeof t === "object" && typeof (t as TabDef).id === "string",
+        )
+      : [];
+    return { tabs: tabs.length > 0 ? tabs : [{ id: "tab-1", label: "Tab 1" }] };
+  }
+  // row / column
+  const sizes = raw && typeof raw === "object" && Array.isArray((raw as Record<string, unknown>)["sizes"])
+    ? ((raw as Record<string, unknown>)["sizes"] as unknown[]).filter((s): s is number => typeof s === "number")
+    : [];
+  return { sizes: sizes.length > 0 ? sizes : [50, 50] };
+}
 
 /** Vị trí/kích thước tự do trên lưới (đơn vị: cột 0-11 cho x/w, hàng 20px cho y/h). */
 export type GridPos = { x: number; y: number; w: number; h: number };
