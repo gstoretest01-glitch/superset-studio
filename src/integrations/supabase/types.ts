@@ -40,6 +40,10 @@ export type Database = {
       }
       report_blocks: {
         Row: {
+          adhoc_filters: Json
+          adhoc_groupby: Json
+          adhoc_metrics: Json
+          adhoc_order_desc: boolean
           background_color: string | null
           block_type: string
           body: string | null
@@ -48,11 +52,14 @@ export type Database = {
           chart_kind: string
           chart_name: string | null
           created_at: string
+          dataset_id: number | null
+          dataset_name: string | null
           embed_uuid: string | null
           height_px: number
           height_sm_px: number
           hide_on_mobile: boolean
           id: string
+          layout: Json
           padding_px: number
           position: number
           radius_px: number | null
@@ -68,6 +75,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          adhoc_filters?: Json
+          adhoc_groupby?: Json
+          adhoc_metrics?: Json
+          adhoc_order_desc?: boolean
           background_color?: string | null
           block_type?: string
           body?: string | null
@@ -76,11 +87,14 @@ export type Database = {
           chart_kind?: string
           chart_name?: string | null
           created_at?: string
+          dataset_id?: number | null
+          dataset_name?: string | null
           embed_uuid?: string | null
           height_px?: number
           height_sm_px?: number
           hide_on_mobile?: boolean
           id?: string
+          layout?: Json
           padding_px?: number
           position?: number
           radius_px?: number | null
@@ -96,6 +110,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          adhoc_filters?: Json
+          adhoc_groupby?: Json
+          adhoc_metrics?: Json
+          adhoc_order_desc?: boolean
           background_color?: string | null
           block_type?: string
           body?: string | null
@@ -104,11 +122,14 @@ export type Database = {
           chart_kind?: string
           chart_name?: string | null
           created_at?: string
+          dataset_id?: number | null
+          dataset_name?: string | null
           embed_uuid?: string | null
           height_px?: number
           height_sm_px?: number
           hide_on_mobile?: boolean
           id?: string
+          layout?: Json
           padding_px?: number
           position?: number
           radius_px?: number | null
