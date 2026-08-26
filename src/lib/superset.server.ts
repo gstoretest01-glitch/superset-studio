@@ -163,6 +163,31 @@ export type ChartDataResult = {
   vizType: string | null;
 };
 
+type ChartDataApiBody = {
+  result?: Array<{
+    data?: Array<Record<string, string | number | boolean | null>>;
+    colnames?: string[];
+    query?: string;
+    status?: string;
+    error?: string;
+  }>;
+};
+
+function parseChartDataResponse(body: ChartDataApiBody, rowLimit: number): ChartDataResult {
+  const first = body.result?.[0];
+  if (first?.status === "error") {
+    throw new Error(first.error ?? "Superset trả về lỗi khi truy vấn dữ liệu.");
+  }
+  const rows = (first?.data ?? []).slice(0, rowLimit);
+  const columns =
+    first?.colnames && first.colnames.length > 0
+      ? first.colnames
+      : rows.length > 0
+        ? Object.keys(rows[0]!)
+        : [];
+  return { columns, rows, vizType: null };
+}
+
 export async function fetchSupersetChartData(
   creds: SupersetCreds,
   chartId: number,
@@ -175,22 +200,178 @@ export async function fetchSupersetChartData(
     const text = await res.text().catch(() => "");
     throw new Error(`Không lấy được dữ liệu biểu đồ #${chartId} (${res.status}). ${text.slice(0, 200)}`);
   }
+  const body = (await res.json()) as ChartDataApiBody;
+  return parseChartDataResponse(body, rowLimit);
+}
+
+export type SupersetDatasetSummary = {
+  id: number;
+  name: string;
+  database: string;
+  schema: string | null;
+};
+
+export async function listSupersetDatasets(
+  creds: SupersetCreds,
+  search: string,
+  pageSize = 100,
+): Promise<SupersetDatasetSummary[]> {
+  const q: Record<string, unknown> = {
+    columns: ["id", "table_name", "schema", "database.database_name"],
+    order_column: "table_name",
+    order_direction: "asc",
+    page_size: pageSize,
+  };
+  if (search.trim()) {
+    q["filters"] = [{ col: "table_name", opr: "ct", value: search.trim() }];
+  }
+  const res = await supersetFetch(creds, `/api/v1/dataset/?q=${encodeURIComponent(JSON.stringify(q))}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Không lấy được danh sách tập dữ liệu (${res.status}). ${text.slice(0, 200)}`);
+  }
   const body = (await res.json()) as {
     result?: Array<{
-      data?: Array<Record<string, string | number | boolean | null>>;
-      colnames?: string[];
-      query?: string;
+      id: number;
+      table_name?: string;
+      schema?: string | null;
+      database?: { database_name?: string };
     }>;
   };
-  const first = body.result?.[0];
-  const rows = (first?.data ?? []).slice(0, rowLimit);
-  const columns =
-    first?.colnames && first.colnames.length > 0
-      ? first.colnames
-      : rows.length > 0
-        ? Object.keys(rows[0]!)
-        : [];
-  return { columns, rows, vizType: null };
+  return (body.result ?? []).map((d) => ({
+    id: d.id,
+    name: d.table_name ?? `Dataset #${d.id}`,
+    database: d.database?.database_name ?? "",
+    schema: d.schema ?? null,
+  }));
+}
+
+export type SupersetDatasetColumn = {
+  name: string;
+  type: string;
+  groupby: boolean;
+  filterable: boolean;
+  isDttm: boolean;
+};
+
+export type SupersetDatasetMetric = {
+  name: string;
+  label: string;
+  expression: string;
+};
+
+export type SupersetDatasetDetail = {
+  id: number;
+  name: string;
+  datasourceType: string;
+  columns: SupersetDatasetColumn[];
+  metrics: SupersetDatasetMetric[];
+  mainDttmCol: string | null;
+};
+
+export async function getSupersetDatasetDetail(
+  creds: SupersetCreds,
+  datasetId: number,
+): Promise<SupersetDatasetDetail> {
+  const res = await supersetFetch(creds, `/api/v1/dataset/${datasetId}`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Không lấy được chi tiết tập dữ liệu #${datasetId} (${res.status}). ${text.slice(0, 200)}`);
+  }
+  const body = (await res.json()) as {
+    result?: {
+      table_name?: string;
+      datasource_type?: string;
+      main_dttm_col?: string | null;
+      columns?: Array<{
+        column_name: string;
+        type?: string | null;
+        groupby?: boolean;
+        filterable?: boolean;
+        is_dttm?: boolean;
+      }>;
+      metrics?: Array<{ metric_name: string; verbose_name?: string | null; expression?: string }>;
+    };
+  };
+  const result = body.result;
+  return {
+    id: datasetId,
+    name: result?.table_name ?? `Dataset #${datasetId}`,
+    datasourceType: result?.datasource_type ?? "table",
+    mainDttmCol: result?.main_dttm_col ?? null,
+    columns: (result?.columns ?? []).map((c) => ({
+      name: c.column_name,
+      type: c.type ?? "",
+      groupby: c.groupby ?? false,
+      filterable: c.filterable ?? false,
+      isDttm: c.is_dttm ?? false,
+    })),
+    metrics: (result?.metrics ?? []).map((m) => ({
+      name: m.metric_name,
+      label: m.verbose_name ?? m.metric_name,
+      expression: m.expression ?? "",
+    })),
+  };
+}
+
+export type AdhocMetric =
+  | { column: string; aggregate: "SUM" | "COUNT" | "AVG" | "MIN" | "MAX" | "COUNT_DISTINCT"; label?: string | undefined }
+  | { savedMetric: string };
+
+function buildMetricPayload(metric: AdhocMetric): unknown {
+  if ("savedMetric" in metric) return metric.savedMetric;
+  return {
+    expressionType: "SIMPLE",
+    column: { column_name: metric.column },
+    aggregate: metric.aggregate,
+    label: metric.label ?? `${metric.aggregate}(${metric.column})`,
+  };
+}
+
+function metricLabel(metric: AdhocMetric): string {
+  if ("savedMetric" in metric) return metric.savedMetric;
+  return metric.label ?? `${metric.aggregate}(${metric.column})`;
+}
+
+export async function fetchAdhocChartData(
+  creds: SupersetCreds,
+  params: {
+    datasetId: number;
+    groupby: string[];
+    metrics: AdhocMetric[];
+    rowLimit: number;
+    orderDesc?: boolean;
+    filters?: Array<{ col: string; op: string; val: unknown }>;
+  },
+): Promise<ChartDataResult> {
+  const orderCol = params.metrics[0] ? metricLabel(params.metrics[0]) : null;
+  const payload = {
+    datasource: { id: params.datasetId, type: "table" },
+    queries: [
+      {
+        columns: params.groupby,
+        groupby: params.groupby,
+        metrics: params.metrics.map(buildMetricPayload),
+        row_limit: params.rowLimit,
+        ...(orderCol ? { orderby: [[orderCol, !(params.orderDesc ?? true)]] } : {}),
+        ...(params.filters && params.filters.length > 0
+          ? { filters: params.filters.map((f) => ({ col: f.col, op: f.op, val: f.val })) }
+          : {}),
+      },
+    ],
+    result_format: "json",
+    result_type: "full",
+  };
+  const res = await supersetFetch(creds, `/api/v1/chart/data`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Không lấy được dữ liệu biểu đồ (${res.status}). ${text.slice(0, 200)}`);
+  }
+  const body = (await res.json()) as ChartDataApiBody;
+  return parseChartDataResponse(body, params.rowLimit);
 }
 
 export async function createGuestToken(
