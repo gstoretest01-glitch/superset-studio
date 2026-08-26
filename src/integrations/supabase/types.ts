@@ -51,6 +51,7 @@ export type Database = {
           chart_id: number | null
           chart_kind: string
           chart_name: string | null
+          container_config: Json
           created_at: string
           dataset_id: number | null
           dataset_name: string | null
@@ -61,6 +62,8 @@ export type Database = {
           id: string
           layout: Json
           padding_px: number
+          parent_block_id: string | null
+          parent_slot: string | null
           position: number
           radius_px: number | null
           render_mode: string
@@ -86,6 +89,7 @@ export type Database = {
           chart_id?: number | null
           chart_kind?: string
           chart_name?: string | null
+          container_config?: Json
           created_at?: string
           dataset_id?: number | null
           dataset_name?: string | null
@@ -96,6 +100,8 @@ export type Database = {
           id?: string
           layout?: Json
           padding_px?: number
+          parent_block_id?: string | null
+          parent_slot?: string | null
           position?: number
           radius_px?: number | null
           render_mode?: string
@@ -121,6 +127,7 @@ export type Database = {
           chart_id?: number | null
           chart_kind?: string
           chart_name?: string | null
+          container_config?: Json
           created_at?: string
           dataset_id?: number | null
           dataset_name?: string | null
@@ -131,6 +138,8 @@ export type Database = {
           id?: string
           layout?: Json
           padding_px?: number
+          parent_block_id?: string | null
+          parent_slot?: string | null
           position?: number
           radius_px?: number | null
           render_mode?: string
@@ -145,6 +154,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "report_blocks_parent_block_id_fkey"
+            columns: ["parent_block_id"]
+            isOneToOne: false
+            referencedRelation: "report_blocks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "report_blocks_report_id_fkey"
             columns: ["report_id"]
