@@ -31,6 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { StyleInspector } from "@/components/report/StyleInspector";
+import { AdhocChartBuilder, AdhocChartEditor, type AdhocChartResult } from "@/components/report/AdhocChartBuilder";
 import { resolveStyle, type BlockStyle } from "@/lib/block-style";
 import {
   CHART_KINDS,
@@ -42,7 +43,7 @@ import {
   type ReportTheme,
 } from "@/lib/report-types";
 import { isChartBlock } from "@/components/report/BlockCards";
-import { getChartData, listCharts } from "@/lib/superset.functions";
+import { getAdhocChartData, getChartData, listCharts } from "@/lib/superset.functions";
 
 export const Route = createFileRoute("/_authenticated/reports/$id")({
   head: () => ({
@@ -73,6 +74,7 @@ function BuilderPage() {
 
   const fetchChartData = useServerFn(getChartData);
   const fetchCharts = useServerFn(listCharts);
+  const fetchAdhocData = useServerFn(getAdhocChartData);
 
   const report = useQuery({
     queryKey: ["report", id],
@@ -203,35 +205,46 @@ function BuilderPage() {
 
   const fetcher = useMemo(
     () => async (block: ReportBlock) => {
-      if (!report.data?.connection_id || block.chart_id == null) {
+      const connectionId = report.data?.connection_id;
+      if (!connectionId) {
         return { columns: [], rows: [], error: "Báo cáo chưa gắn kết nối Superset." };
       }
+      if (block.block_type === "adhoc_query") {
+        if (block.dataset_id == null) return { columns: [], rows: [], error: "Chưa chọn tập dữ liệu." };
+        return fetchAdhocData({
+          data: {
+            connectionId,
+            datasetId: block.dataset_id,
+            groupby: Array.isArray(block.adhoc_groupby) ? (block.adhoc_groupby as string[]) : [],
+            metrics: Array.isArray(block.adhoc_metrics) ? (block.adhoc_metrics as never[]) : [],
+            rowLimit: block.row_limit,
+            orderDesc: block.adhoc_order_desc,
+          },
+        });
+      }
+      if (block.chart_id == null) return { columns: [], rows: [], error: "Chưa chọn biểu đồ." };
       return fetchChartData({
-        data: {
-          connectionId: report.data.connection_id,
-          chartId: block.chart_id,
-          rowLimit: block.row_limit,
-        },
+        data: { connectionId, chartId: block.chart_id, rowLimit: block.row_limit },
       });
     },
-    [fetchChartData, report.data?.connection_id],
+    [fetchChartData, fetchAdhocData, report.data?.connection_id],
   );
 
   const selectedStyle = resolveStyle(selected?.style_config);
   const selectedLayout = selected ? (resolveReportLayout(blocks.data ?? []).get(selected.id) ?? null) : null;
 
   const selectedColumns = useQuery({
-    queryKey: ["block-columns", selected?.id, selected?.chart_id, report.data?.connection_id],
-    enabled: Boolean(selected?.chart_id && report.data?.connection_id),
+    queryKey: [
+      "block-columns",
+      selected?.id,
+      selected?.chart_id,
+      selected?.dataset_id,
+      report.data?.connection_id,
+    ],
+    enabled: Boolean(selected && (selected.chart_id != null || selected.dataset_id != null) && report.data?.connection_id),
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const res = await fetchChartData({
-        data: {
-          connectionId: report.data!.connection_id!,
-          chartId: selected!.chart_id!,
-          rowLimit: 10,
-        },
-      });
+      const res = await fetcher({ ...selected!, row_limit: 10 });
       return res.columns ?? [];
     },
   });
@@ -402,6 +415,22 @@ function BuilderPage() {
                   ))}
                 </div>
               </div>
+
+              <AdhocChartBuilder
+                connectionId={r.connection_id}
+                onCreate={(result: AdhocChartResult) =>
+                  addBlock.mutate({
+                    block_type: "adhoc_query",
+                    dataset_id: result.datasetId,
+                    dataset_name: result.datasetName,
+                    adhoc_groupby: result.groupby,
+                    adhoc_metrics: result.metrics,
+                    row_limit: result.rowLimit,
+                    adhoc_order_desc: result.orderDesc,
+                    title: result.title,
+                  })
+                }
+              />
             </div>
           )}
         </aside>
@@ -467,6 +496,37 @@ function BuilderPage() {
 
               {isChartBlock(selected) && (
                 <>
+                  {selected.block_type === "adhoc_query" && (
+                    <AdhocChartEditor
+                      connectionId={r.connection_id}
+                      initial={{
+                        datasetId: selected.dataset_id,
+                        datasetName: selected.dataset_name,
+                        groupby: Array.isArray(selected.adhoc_groupby) ? (selected.adhoc_groupby as string[]) : [],
+                        metrics: Array.isArray(selected.adhoc_metrics) ? (selected.adhoc_metrics as never[]) : [],
+                        rowLimit: selected.row_limit,
+                        orderDesc: selected.adhoc_order_desc,
+                      }}
+                      onSave={(result: AdhocChartResult) =>
+                        updateBlock.mutate({
+                          blockId: selected.id,
+                          patch: {
+                            dataset_id: result.datasetId,
+                            dataset_name: result.datasetName,
+                            adhoc_groupby: result.groupby,
+                            adhoc_metrics: result.metrics,
+                            row_limit: result.rowLimit,
+                            adhoc_order_desc: result.orderDesc,
+                          },
+                        })
+                      }
+                      trigger={
+                        <Button variant="secondary" size="sm" className="w-full" disabled={!canEdit}>
+                          Sửa nguồn dữ liệu
+                        </Button>
+                      }
+                    />
+                  )}
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Kiểu biểu đồ</Label>
                     <Select
