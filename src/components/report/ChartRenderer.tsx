@@ -287,7 +287,7 @@ export function ChartRenderer({ kind, columns, rows: rawRows, theme, compact, st
   );
 
   const margin = { top: 8, right: 8, bottom: style.xLabelAngle ? 18 : 0, left: 0 };
-  const stackId = style.barStack === "none" ? undefined : "s";
+  const stackId: string = style.barStack === "none" ? "" : "s";
 
   if (resolved === "line" || resolved === "area") {
     const Chart = resolved === "line" ? LineChart : AreaChart;
@@ -311,7 +311,7 @@ export function ChartRenderer({ kind, columns, rows: rawRows, theme, compact, st
                 key={k}
                 type={style.lineCurve}
                 dataKey={k}
-                stackId={stackId}
+                {...(stackId ? { stackId } : {})}
                 stroke={palette[i % palette.length]}
                 fill={palette[i % palette.length]}
                 fillOpacity={style.areaOpacity}
@@ -333,7 +333,7 @@ export function ChartRenderer({ kind, columns, rows: rawRows, theme, compact, st
           <Bar
             key={k}
             dataKey={k}
-            stackId={stackId}
+            {...(stackId ? { stackId } : {})}
             fill={palette[i % palette.length]}
             radius={horizontal ? [0, style.barRadius, style.barRadius, 0] : [style.barRadius, style.barRadius, 0, 0]}
             {...(style.barSize ? { barSize: style.barSize } : {})}
