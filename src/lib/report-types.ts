@@ -1,3 +1,4 @@
+import type { Json } from "@/integrations/supabase/types";
 export type ReportTheme = {
   id: string;
   name: string;
@@ -39,6 +40,7 @@ export type ReportBlock = {
   border_color: string | null;
   radius_px: number | null;
   padding_px: number;
+  style_config: Json;
 };
 
 export type Report = {

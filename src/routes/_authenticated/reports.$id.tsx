@@ -32,6 +32,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { StyleInspector } from "@/components/report/StyleInspector";
+import { resolveStyle, type BlockStyle } from "@/lib/block-style";
 import { CHART_KINDS, FALLBACK_THEME, type Report, type ReportBlock, type ReportTheme } from "@/lib/report-types";
 import { getChartData, listCharts } from "@/lib/superset.functions";
 
@@ -196,6 +198,33 @@ function BuilderPage() {
     },
     [fetchChartData, report.data?.connection_id],
   );
+
+  const selectedStyle = resolveStyle(selected?.style_config);
+
+  const selectedColumns = useQuery({
+    queryKey: ["block-columns", selected?.id, selected?.chart_id, report.data?.connection_id],
+    enabled: Boolean(selected?.chart_id && report.data?.connection_id),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const res = await fetchChartData({
+        data: {
+          connectionId: report.data!.connection_id!,
+          chartId: selected!.chart_id!,
+          rowLimit: 10,
+        },
+      });
+      return res.columns ?? [];
+    },
+  });
+
+  const applyStyle = (blockId: string, current: BlockStyle, patch: Partial<BlockStyle>) => {
+    const next = { ...current, ...patch };
+    qc.setQueryData(["blocks", id], (old: ReportBlock[] | undefined) =>
+      old?.map((b) => (b.id === blockId ? { ...b, style_config: next } : b)),
+    );
+    updateBlock.mutate({ blockId, patch: { style_config: next } as Partial<ReportBlock> });
+  };
+
 
   if (report.isPending) {
     return (
@@ -446,6 +475,18 @@ function BuilderPage() {
                       step={10}
                       disabled={!canEdit}
                       onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { row_limit: v ?? selected.row_limit } })}
+                    />
+                  </div>
+
+                  <div className="border-t border-border pt-3">
+                    <StyleInspector
+                      kind={selected.chart_kind}
+                      style={selectedStyle}
+                      theme={theme}
+                      columns={selectedColumns.data ?? []}
+                      disabled={!canEdit}
+                      onChange={(patch) => applyStyle(selected.id, selectedStyle, patch)}
+                      onReset={() => updateBlock.mutate({ blockId: selected.id, patch: { style_config: {} } })}
                     />
                   </div>
                 </>

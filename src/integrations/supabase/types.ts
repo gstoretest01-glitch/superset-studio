@@ -63,6 +63,7 @@ export type Database = {
           span_lg: number
           span_md: number
           span_sm: number
+          style_config: Json
           title: string | null
           updated_at: string
         }
@@ -90,6 +91,7 @@ export type Database = {
           span_lg?: number
           span_md?: number
           span_sm?: number
+          style_config?: Json
           title?: string | null
           updated_at?: string
         }
@@ -117,6 +119,7 @@ export type Database = {
           span_lg?: number
           span_md?: number
           span_sm?: number
+          style_config?: Json
           title?: string | null
           updated_at?: string
         }

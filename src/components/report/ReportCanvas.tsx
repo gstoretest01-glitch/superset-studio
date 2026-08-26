@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { ChartRenderer } from "./ChartRenderer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { resolveStyle } from "@/lib/block-style";
 import type { ChartRow, ReportBlock, ReportTheme } from "@/lib/report-types";
 
 export type BlockData = {
@@ -51,6 +52,7 @@ function BlockShell({
   children: React.ReactNode;
   onFullscreen?: () => void;
 }) {
+  const style = resolveStyle(block.style_config);
   return (
     <div
       className="group/block relative flex h-full flex-col overflow-hidden"
@@ -63,13 +65,24 @@ function BlockShell({
       }}
     >
       {block.show_title && (block.title || block.chart_name) && (
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <h3
-            className="truncate text-sm font-semibold"
-            style={{ fontFamily: theme.font_family, color: theme.text_color }}
-          >
-            {block.title || block.chart_name}
-          </h3>
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1" style={{ textAlign: style.titleAlign }}>
+            <h3
+              className="truncate font-semibold"
+              style={{
+                fontFamily: theme.font_family,
+                color: style.titleColor ?? theme.text_color,
+                fontSize: `${style.titleSize}px`,
+              }}
+            >
+              {block.title || block.chart_name}
+            </h3>
+            {style.subtitle && block.block_type === "superset_chart" && (
+              <p className="truncate text-[11px]" style={{ color: theme.muted_text_color }}>
+                {style.subtitle}
+              </p>
+            )}
+          </div>
           {onFullscreen && (
             <button
               type="button"
@@ -136,6 +149,7 @@ function ChartBlockCard({
         columns={query.data!.columns}
         rows={query.data!.rows}
         theme={theme}
+        style={block.style_config}
         compact={compact}
       />
     );
