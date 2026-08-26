@@ -171,13 +171,22 @@ export const getPublicBlockData = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ blockId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { resolvePublicBlockContext } = await import("./superset-creds.server");
-    const { fetchSupersetChartData } = await import("./superset.server");
+    const { fetchSupersetChartData, fetchAdhocChartData } = await import("./superset.server");
 
     const ctx = await resolvePublicBlockContext(data.blockId);
     if ("error" in ctx) return { columns: [], rows: [], error: ctx.error };
 
     try {
-      const res = await fetchSupersetChartData(ctx.creds, ctx.chartId, ctx.rowLimit);
+      const res =
+        ctx.kind === "adhoc"
+          ? await fetchAdhocChartData(ctx.creds, {
+              datasetId: ctx.datasetId,
+              groupby: ctx.groupby,
+              metrics: ctx.metrics,
+              rowLimit: ctx.rowLimit,
+              orderDesc: ctx.orderDesc,
+            })
+          : await fetchSupersetChartData(ctx.creds, ctx.chartId, ctx.rowLimit);
       return { ...res, error: null };
     } catch (err) {
       return {
