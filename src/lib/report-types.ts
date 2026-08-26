@@ -39,6 +39,7 @@ export type ReportBlock = {
   border_color: string | null;
   radius_px: number | null;
   padding_px: number;
+  style_config: unknown;
 };
 
 export type Report = {
