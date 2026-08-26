@@ -330,14 +330,17 @@ export function AdhocChartBuilder({
         <DialogHeader>
           <DialogTitle>Tạo biểu đồ mới từ tập dữ liệu</DialogTitle>
         </DialogHeader>
-        <AdhocChartForm
-          connectionId={connectionId}
-          onSubmit={(result) => {
-            onCreate(result);
-            setOpen(false);
-          }}
-          submitLabel="Thêm vào báo cáo"
-        />
+        {open && (
+          <AdhocChartForm
+            key="new"
+            connectionId={connectionId}
+            onSubmit={(result) => {
+              onCreate(result);
+              setOpen(false);
+            }}
+            submitLabel="Thêm vào báo cáo"
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -364,15 +367,20 @@ export function AdhocChartEditor({
         <DialogHeader>
           <DialogTitle>Sửa biểu đồ</DialogTitle>
         </DialogHeader>
-        <AdhocChartForm
-          connectionId={connectionId}
-          initial={initial}
-          onSubmit={(result) => {
-            onSave(result);
-            setOpen(false);
-          }}
-          submitLabel="Lưu thay đổi"
-        />
+        {open && (
+          // key buộc remount mỗi lần mở dialog, tránh state của lần sửa trước (block khác)
+          // còn sót lại — xem AdhocChartForm dùng useState(initial?...) khởi tạo một lần duy nhất.
+          <AdhocChartForm
+            key={`${initial.datasetId ?? "new"}-${JSON.stringify(initial.groupby)}-${JSON.stringify(initial.metrics)}`}
+            connectionId={connectionId}
+            initial={initial}
+            onSubmit={(result) => {
+              onSave(result);
+              setOpen(false);
+            }}
+            submitLabel="Lưu thay đổi"
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

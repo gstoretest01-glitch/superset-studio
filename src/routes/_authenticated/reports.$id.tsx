@@ -36,6 +36,7 @@ import { resolveStyle, type BlockStyle } from "@/lib/block-style";
 import {
   CHART_KINDS,
   FALLBACK_THEME,
+  planNewBlockLayout,
   resolveReportLayout,
   type BlockLayout,
   type Report,
@@ -62,6 +63,11 @@ const VIEWPORTS: Array<{ key: Viewport; label: string; icon: typeof Monitor }> =
   { key: "md", label: "Máy tính bảng", icon: Tablet },
   { key: "sm", label: "Điện thoại", icon: Smartphone },
 ];
+
+// Module-level (không phải useRef/useState) để chặn backfill chạy trùng lặp cho cùng report_id
+// kể cả khi component unmount/remount liên tiếp (React StrictMode ở dev) — useRef bị reset mỗi
+// lần mount lại nên không đủ để ngăn 2 lần backfill race nhau ghi đè layout khác nhau.
+const backfilledReports = new Set<string>();
 
 function BuilderPage() {
   const { id } = Route.useParams();
@@ -146,9 +152,12 @@ function BuilderPage() {
   const addBlock = useMutation({
     mutationFn: async (patch: Partial<ReportBlock>) => {
       const position = (blocks.data?.length ?? 0) + 1;
+      const existing = blocks.data ?? [];
+      const othersLayout = [...resolveReportLayout(existing).values()];
+      const layout = planNewBlockLayout(patch.block_type ?? "superset_chart", othersLayout);
       const { data, error } = await supabase
         .from("report_blocks")
-        .insert({ report_id: id, position, ...patch })
+        .insert({ report_id: id, position, layout: layout as unknown as ReportBlock["layout"], ...patch })
         .select("id")
         .single();
       if (error) throw error;
@@ -202,6 +211,27 @@ function BuilderPage() {
     );
     updateBlockLayout.mutate(changes);
   };
+
+  // Backfill 1 lần cho block cũ chưa có layout đầy đủ (dữ liệu tạo trước khi có auto-placement):
+  // resolveReportLayout tính vị trí ổn định, ta lưu lại tường minh để không phải suy luận lại
+  // mỗi lần render (tránh chồng lấn khi thứ tự block thay đổi giữa các lần tính).
+  useEffect(() => {
+    if (backfilledReports.has(id) || !blocks.data || blocks.data.length === 0) return;
+    // Đánh dấu NGAY trước khi tính toán (đồng bộ, không có await ở giữa) để lần chạy thứ 2
+    // (StrictMode remount, hoặc effect re-fire khi blocks.data đổi identity trong lúc mutation
+    // đầu chưa kịp lưu) luôn thấy report này đã được xử lý — tránh 2 lần tính song song trên
+    // cùng dữ liệu cũ rồi ghi đè nhau ra kết quả trùng vị trí.
+    backfilledReports.add(id);
+    const missing = blocks.data.filter((b) => {
+      const raw = b.layout && typeof b.layout === "object" ? (b.layout as Record<string, unknown>) : {};
+      return (["lg", "md", "sm"] as const).some((bp) => raw[bp] == null);
+    });
+    if (missing.length === 0) return;
+    const layouts = resolveReportLayout(blocks.data);
+    const changes = missing.map((b) => ({ id: b.id, layout: layouts.get(b.id)! }));
+    updateBlockLayout.mutate(changes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocks.data]);
 
   const fetcher = useMemo(
     () => async (block: ReportBlock) => {

@@ -56,6 +56,7 @@ export type Breakpoint = "lg" | "md" | "sm";
 export type BlockLayout = Partial<Record<Breakpoint, GridPos>>;
 
 const LAYOUT_ROW_PX = 20;
+const GRID_COLS = 12;
 
 function isGridPos(v: unknown): v is GridPos {
   if (!v || typeof v !== "object") return false;
@@ -63,55 +64,78 @@ function isGridPos(v: unknown): v is GridPos {
   return typeof p["x"] === "number" && typeof p["y"] === "number" && typeof p["w"] === "number" && typeof p["h"] === "number";
 }
 
-/** Trộn `layout` lưu trong DB với vị trí suy ra từ cột cũ (span/height/position) khi thiếu. */
-export function resolveLayout(raw: unknown, block: ReportBlock): BlockLayout {
-  const stored = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+/** Đọc `layout[bp]` đã lưu trong DB cho 1 breakpoint. `null` nếu chưa có (không đoán mò). */
+export function resolveLayout(raw: unknown, bp: Breakpoint): GridPos | null {
+  const stored = raw && typeof raw === "object" ? (raw as Record<string, unknown>)[bp] : undefined;
+  return isGridPos(stored) ? stored : null;
+}
+
+function collides(a: GridPos, b: GridPos): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/**
+ * Tìm ô trống đầu tiên (quét từ hàng 0, cột 0) không va chạm với bất kỳ layout nào đã có.
+ * Đây là thuật toán auto-placement duy nhất trong hệ thống — chạy MỘT LẦN khi tạo/backfill
+ * block, kết quả luôn được lưu tường minh vào `layout`. Không có suy luận lại khi render.
+ */
+export function findFreePosition(existing: GridPos[], w: number, h: number, cols = GRID_COLS): GridPos {
+  const width = Math.min(cols, Math.max(1, w));
+  for (let y = 0; y < 100_000; y++) {
+    for (let x = 0; x <= cols - width; x++) {
+      const candidate: GridPos = { x, y, w: width, h };
+      if (!existing.some((e) => collides(candidate, e))) return candidate;
+    }
+  }
+  return { x: 0, y: existing.reduce((m, e) => Math.max(m, e.y + e.h), 0), w: width, h };
+}
+
+/** Kích thước mặc định (đơn vị lưới) theo loại khối, dùng khi tạo block mới. */
+export function defaultBlockSize(blockType: string): { w: number; h: number } {
+  if (blockType === "heading") return { w: 12, h: 5 };
+  if (blockType === "text") return { w: 12, h: 8 };
+  if (blockType === "divider") return { w: 12, h: 2 };
+  if (blockType === "tabs" || blockType === "row" || blockType === "column") return { w: 12, h: 17 };
+  return { w: 6, h: 17 }; // superset_chart / adhoc_query
+}
+
+/**
+ * Tính layout đầy đủ (lg/md/sm) cho MỘT block mới, tránh va chạm với layout hiện có của các
+ * block khác trong báo cáo. `others` phải là layout đã resolve (đầy đủ) của các block anh em.
+ */
+export function planNewBlockLayout(blockType: string, others: BlockLayout[]): BlockLayout {
+  const { w, h } = defaultBlockSize(blockType);
   const out: BlockLayout = {};
   for (const bp of ["lg", "md", "sm"] as const) {
-    const v = stored[bp];
-    if (isGridPos(v)) {
-      out[bp] = v;
-      continue;
-    }
-    const w = bp === "lg" ? block.span_lg : bp === "md" ? block.span_md : block.span_sm;
-    const heightPx = bp === "sm" ? block.height_sm_px : block.height_px;
-    out[bp] = { x: 0, y: 0, w: Math.min(12, Math.max(1, w)), h: Math.max(1, Math.ceil(heightPx / LAYOUT_ROW_PX)) };
+    const existing = others.map((o) => o[bp]).filter((p): p is GridPos => p != null);
+    const width = bp === "sm" ? GRID_COLS : w;
+    out[bp] = findFreePosition(existing, width, h);
   }
   return out;
 }
 
 /**
- * Suy ra layout cho TOÀN BỘ block của một báo cáo cùng lúc — dùng khi block chưa có `layout`
- * lưu sẵn (dữ liệu cũ): xếp block theo thứ tự `position` thành các hàng chồng lên nhau, mỗi
- * hàng cao bằng block cao nhất trong đó, khớp với cách CSS Grid auto-flow cũ đã hiển thị.
+ * Trả về layout đầy đủ (lg/md/sm) cho TOÀN BỘ block của một báo cáo. Block đã có `layout` lưu
+ * sẵn giữ nguyên; block còn thiếu (dữ liệu cũ trước khi có auto-placement) được backfill bằng
+ * `findFreePosition` theo đúng thứ tự `position`, tính against layout đã resolve của các block
+ * đứng trước — không còn nhánh "suy luận từ span/height" mập mờ như trước.
  */
 export function resolveReportLayout(blocks: ReportBlock[]): Map<string, BlockLayout> {
   const sorted = [...blocks].sort((a, b) => a.position - b.position);
   const out = new Map<string, BlockLayout>();
-  const cursorY: Record<Breakpoint, number> = { lg: 0, md: 0, sm: 0 };
-  const rowX: Record<Breakpoint, number> = { lg: 0, md: 0, sm: 0 };
-  const rowMaxH: Record<Breakpoint, number> = { lg: 0, md: 0, sm: 0 };
 
-  for (const block of sorted) {
-    const base = resolveLayout(block.layout, block);
-    const layout: BlockLayout = {};
-    for (const bp of ["lg", "md", "sm"] as const) {
-      const stored = block.layout && typeof block.layout === "object" ? (block.layout as Record<string, unknown>)[bp] : undefined;
-      if (isGridPos(stored)) {
-        layout[bp] = stored;
-        continue;
-      }
-      const pos = base[bp]!;
-      if (rowX[bp] + pos.w > 12) {
-        cursorY[bp] += rowMaxH[bp];
-        rowX[bp] = 0;
-        rowMaxH[bp] = 0;
-      }
-      layout[bp] = { x: rowX[bp], y: cursorY[bp], w: pos.w, h: pos.h };
-      rowX[bp] += pos.w;
-      rowMaxH[bp] = Math.max(rowMaxH[bp], pos.h);
+  for (const bp of ["lg", "md", "sm"] as const) {
+    const placed: GridPos[] = [];
+    for (const block of sorted) {
+      const stored = resolveLayout(block.layout, bp);
+      const size = defaultBlockSize(block.block_type);
+      const width = bp === "sm" ? GRID_COLS : size.w;
+      const pos = stored ?? findFreePosition(placed, width, size.h);
+      placed.push(pos);
+      const current = out.get(block.id) ?? {};
+      current[bp] = pos;
+      out.set(block.id, current);
     }
-    out.set(block.id, layout);
   }
   return out;
 }
