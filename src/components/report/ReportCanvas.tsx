@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { ChartRenderer } from "./ChartRenderer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { resolveStyle } from "@/lib/block-style";
 import type { ChartRow, ReportBlock, ReportTheme } from "@/lib/report-types";
 
 export type BlockData = {
@@ -148,6 +149,7 @@ function ChartBlockCard({
         columns={query.data!.columns}
         rows={query.data!.rows}
         theme={theme}
+        style={block.style_config}
         compact={compact}
       />
     );
