@@ -85,7 +85,9 @@ function BuilderPage() {
         .eq("report_id", id)
         .order("position");
       if (error) throw error;
-      return data as ReportBlock[];
+      // types.ts (tự sinh bởi Lovable Cloud) chưa có cột layout/dataset_id/adhoc_* —
+      // sẽ tự cập nhật sau khi migration được áp dụng. Cast qua unknown tạm thời.
+      return data as unknown as ReportBlock[];
     },
   });
 
@@ -137,9 +139,11 @@ function BuilderPage() {
   const addBlock = useMutation({
     mutationFn: async (patch: Partial<ReportBlock>) => {
       const position = (blocks.data?.length ?? 0) + 1;
+      // types.ts chưa có cột layout/dataset_id/adhoc_* — cast tạm qua unknown cho đến khi
+      // Lovable Cloud tự regenerate sau khi migration được áp dụng.
       const { data, error } = await supabase
         .from("report_blocks")
-        .insert({ report_id: id, position, ...patch })
+        .insert({ report_id: id, position, ...patch } as unknown as never)
         .select("id")
         .single();
       if (error) throw error;
@@ -154,7 +158,12 @@ function BuilderPage() {
 
   const updateBlock = useMutation({
     mutationFn: async ({ blockId, patch }: { blockId: string; patch: Partial<ReportBlock> }) => {
-      const { error } = await supabase.from("report_blocks").update(patch).eq("id", blockId);
+      // types.ts chưa có cột layout/dataset_id/adhoc_* — cast tạm qua unknown cho đến khi
+      // Lovable Cloud tự regenerate sau khi migration được áp dụng.
+      const { error } = await supabase
+        .from("report_blocks")
+        .update(patch as unknown as never)
+        .eq("id", blockId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["blocks", id] }),

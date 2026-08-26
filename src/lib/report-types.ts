@@ -41,7 +41,49 @@ export type ReportBlock = {
   radius_px: number | null;
   padding_px: number;
   style_config: Json;
+  layout: Json;
+  dataset_id: number | null;
+  dataset_name: string | null;
+  adhoc_metrics: Json;
+  adhoc_groupby: Json;
+  adhoc_filters: Json;
+  adhoc_order_desc: boolean;
 };
+
+/** Vị trí/kích thước tự do trên lưới (đơn vị: cột 0-11 cho x/w, hàng 20px cho y/h). */
+export type GridPos = { x: number; y: number; w: number; h: number };
+export type Breakpoint = "lg" | "md" | "sm";
+export type BlockLayout = Partial<Record<Breakpoint, GridPos>>;
+
+const LAYOUT_ROW_PX = 20;
+
+function fallbackPos(block: ReportBlock, bp: Breakpoint): GridPos {
+  const w = bp === "lg" ? block.span_lg : bp === "md" ? block.span_md : block.span_sm;
+  const heightPx = bp === "sm" ? block.height_sm_px : block.height_px;
+  return {
+    x: 0,
+    y: block.position * Math.max(1, Math.ceil(block.height_px / LAYOUT_ROW_PX)),
+    w: Math.min(12, Math.max(1, w)),
+    h: Math.max(1, Math.ceil(heightPx / LAYOUT_ROW_PX)),
+  };
+}
+
+function isGridPos(v: unknown): v is GridPos {
+  if (!v || typeof v !== "object") return false;
+  const p = v as Record<string, unknown>;
+  return typeof p["x"] === "number" && typeof p["y"] === "number" && typeof p["w"] === "number" && typeof p["h"] === "number";
+}
+
+/** Trộn `layout` lưu trong DB với vị trí suy ra từ cột cũ (span/height/position) khi thiếu. */
+export function resolveLayout(raw: unknown, block: ReportBlock): BlockLayout {
+  const stored = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const out: BlockLayout = {};
+  for (const bp of ["lg", "md", "sm"] as const) {
+    const v = stored[bp];
+    out[bp] = isGridPos(v) ? v : fallbackPos(block, bp);
+  }
+  return out;
+}
 
 export type Report = {
   id: string;
