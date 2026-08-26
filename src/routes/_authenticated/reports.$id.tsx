@@ -32,6 +32,8 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { StyleInspector } from "@/components/report/StyleInspector";
+import { resolveStyle, type BlockStyle } from "@/lib/block-style";
 import { CHART_KINDS, FALLBACK_THEME, type Report, type ReportBlock, type ReportTheme } from "@/lib/report-types";
 import { getChartData, listCharts } from "@/lib/superset.functions";
 
