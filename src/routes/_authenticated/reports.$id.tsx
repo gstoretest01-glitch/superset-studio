@@ -448,6 +448,18 @@ function BuilderPage() {
                       onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { row_limit: v ?? selected.row_limit } })}
                     />
                   </div>
+
+                  <div className="border-t border-border pt-3">
+                    <StyleInspector
+                      kind={selected.chart_kind}
+                      style={selectedStyle}
+                      theme={theme}
+                      columns={selectedColumns.data ?? []}
+                      disabled={!canEdit}
+                      onChange={(patch) => applyStyle(selected.id, selectedStyle, patch)}
+                      onReset={() => updateBlock.mutate({ blockId: selected.id, patch: { style_config: {} } })}
+                    />
+                  </div>
                 </>
               )}
 
