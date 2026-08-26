@@ -44,7 +44,7 @@ function Choice<T extends string>({
   value: T;
   options: Array<{ value: T; label: string }>;
   onChange: (v: T) => void;
-  disabled?: boolean;
+  disabled?: boolean | undefined;
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as T)} disabled={disabled}>
@@ -76,9 +76,9 @@ function NumSlider({
   value: number;
   min: number;
   max: number;
-  step?: number;
-  suffix?: string;
-  disabled?: boolean;
+  step?: number | undefined;
+  suffix?: string | undefined;
+  disabled?: boolean | undefined;
   onCommit: (v: number) => void;
 }) {
   return (
@@ -112,7 +112,7 @@ export function StyleInspector({
   style: BlockStyle;
   theme: ReportTheme;
   columns: string[];
-  disabled?: boolean;
+  disabled?: boolean | undefined;
   onChange: (patch: Patch) => void;
   onReset: () => void;
 }) {
