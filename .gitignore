@@ -22,6 +22,7 @@ dist-ssr
 
 # Superset local deployment secrets
 deploy/superset/.env
+.env.local
 
 # Editor directories and files
 .vscode/*

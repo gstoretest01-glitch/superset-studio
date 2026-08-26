@@ -222,14 +222,16 @@ export async function pingSuperset(creds: SupersetCreds): Promise<{
   version?: string;
 }> {
   try {
-    const res = await supersetFetch(creds, `/api/v1/me/`);
+    // Lưu ý: /api/v1/me/ trả 401 kể cả với admin trên một số bản Superset 6.0.0
+    // (permission CurrentUserRestApi không được gán mặc định). Dùng /api/v1/chart/
+    // với page_size=0 để xác nhận phiên đăng nhập hợp lệ mà không phụ thuộc endpoint đó.
+    const res = await supersetFetch(creds, `/api/v1/chart/?q=(page_size:1)`);
     if (!res.ok) {
       return { ok: false, message: `Máy chủ trả về ${res.status}` };
     }
-    const me = (await res.json()) as { result?: { username?: string } };
     return {
       ok: true,
-      message: `Kết nối thành công với tài khoản "${me.result?.username ?? creds.username}"`,
+      message: `Kết nối thành công với tài khoản "${creds.username}"`,
     };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Lỗi không xác định" };
