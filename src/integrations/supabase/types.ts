@@ -340,9 +340,15 @@ export type Database = {
       get_public_block_context: {
         Args: { _block_id: string }
         Returns: {
+          adhoc_filters: Json
+          adhoc_groupby: Json
+          adhoc_metrics: Json
+          adhoc_order_desc: boolean
           auth_provider: string
           base_url: string
+          block_type: string
           chart_id: number
+          dataset_id: number
           row_limit: number
           service_username: string
         }[]
