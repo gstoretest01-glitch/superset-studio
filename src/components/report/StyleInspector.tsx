@@ -47,7 +47,7 @@ function Choice<T extends string>({
   disabled?: boolean | undefined;
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as T)} disabled={disabled}>
+    <Select value={value} onValueChange={(v) => onChange(v as T)} disabled={disabled ?? false}>
       <SelectTrigger className="h-8 w-[142px] text-xs">
         <SelectValue />
       </SelectTrigger>
@@ -92,7 +92,7 @@ function NumSlider({
         min={min}
         max={max}
         step={step}
-        disabled={disabled}
+        disabled={disabled ?? false}
         onValueCommit={([v]) => onCommit(v ?? value)}
       />
     </div>
