@@ -20,6 +20,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Superset local deployment secrets
+deploy/superset/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

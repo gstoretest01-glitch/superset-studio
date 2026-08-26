@@ -1,0 +1,104 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: superset
+      POSTGRES_USER: superset
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-superset}
+    volumes:
+      - superset_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superset"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - superset_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  superset-init:
+    image: apache/superset:6.0.0
+    user: "0:0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: &superset-env
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
+      GUEST_TOKEN_JWT_SECRET: ${GUEST_TOKEN_JWT_SECRET:-}
+      DATABASE_DIALECT: postgresql
+      DATABASE_USER: superset
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-superset}
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_DB: superset
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      APP_DOMAIN: ${APP_DOMAIN:-http://localhost:8080}
+      SUPERSET_SERVICE_USERNAME: ${SUPERSET_SERVICE_USERNAME:-report_studio_svc}
+      SUPERSET_SERVICE_PASSWORD: ${SUPERSET_SERVICE_PASSWORD:-change-me-service-pass}
+      SUPERSET_SERVICE_EMAIL: ${SUPERSET_SERVICE_EMAIL:-report-studio-svc@example.com}
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+      - ./create_service_user.py:/app/pythonpath/create_service_user.py
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        uv pip install --no-cache-dir psycopg2-binary &&
+        superset db upgrade &&
+        superset fab create-admin --username "${SUPERSET_ADMIN_USERNAME:-admin}" --firstname Admin --lastname Admin --email "${SUPERSET_ADMIN_EMAIL:-admin@example.com}" --password "${SUPERSET_ADMIN_PASSWORD:-admin}" || true &&
+        superset init &&
+        python /app/pythonpath/create_service_user.py
+
+  superset:
+    image: apache/superset:6.0.0
+    user: "0:0"
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    ports:
+      - "8088:8088"
+    environment: *superset-env
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+      - superset_home:/app/superset_home
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        uv pip install --no-cache-dir psycopg2-binary &&
+        exec /app/docker/entrypoints/run-server.sh
+
+  superset-worker:
+    image: apache/superset:6.0.0
+    user: "0:0"
+    restart: unless-stopped
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    environment: *superset-env
+    volumes:
+      - ./superset_config.py:/app/pythonpath/superset_config.py
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        uv pip install --no-cache-dir psycopg2-binary &&
+        exec celery --app=superset.tasks.celery_app:app worker --pool=prefork -O fair -c 2
+
+volumes:
+  superset_db:
+  superset_redis:
+  superset_home:
