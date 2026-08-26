@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BlockCard, type BlockFetcher } from "./BlockCards";
-import { resolveContainerConfig, type ReportBlock, type ReportTheme } from "@/lib/report-types";
+import { slotsOf } from "@/lib/block-tree";
+import type { ReportBlock, ReportTheme } from "@/lib/report-types";
 
 type ContainerProps = {
   block: ReportBlock;
@@ -81,8 +82,7 @@ function ContainerAwareChild(props: ContainerProps) {
 }
 
 function TabsContainer({ block, allBlocks, theme, fetcher, selectedId, onSelect }: ContainerProps) {
-  const config = resolveContainerConfig(block);
-  const tabs = "tabs" in config ? config.tabs : [];
+  const tabs = slotsOf(block);
   return (
     <Tabs {...(tabs[0] ? { defaultValue: tabs[0].id } : {})} className="flex h-full flex-col">
       <TabsList className="rs-no-drag shrink-0">
@@ -111,15 +111,14 @@ function TabsContainer({ block, allBlocks, theme, fetcher, selectedId, onSelect 
 }
 
 function RowColumnContainer({ block, allBlocks, theme, fetcher, selectedId, onSelect }: ContainerProps) {
-  const config = resolveContainerConfig(block);
-  const sizes = "sizes" in config ? config.sizes : [50, 50];
+  const slots = slotsOf(block);
   const isRow = block.block_type === "row";
   return (
     <div className={`scroll-thin flex h-full gap-3 overflow-auto ${isRow ? "flex-row" : "flex-col"}`}>
-      {sizes.map((size, i) => (
-        <div key={i} style={isRow ? { flexBasis: `${size}%`, flexShrink: 0 } : { flex: `0 0 auto` }}>
+      {slots.map((slot) => (
+        <div key={slot.id} style={isRow ? { flexBasis: `${100 / slots.length}%`, flexShrink: 0 } : { flex: `0 0 auto` }}>
           <ChildBlockList
-            items={childrenOf(block, allBlocks, String(i))}
+            items={childrenOf(block, allBlocks, slot.id)}
             allBlocks={allBlocks}
             theme={theme}
             fetcher={fetcher}

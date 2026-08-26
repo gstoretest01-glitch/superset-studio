@@ -36,12 +36,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { StyleInspector } from "@/components/report/StyleInspector";
 import { AdhocChartBuilder, AdhocChartEditor, type AdhocChartResult } from "@/components/report/AdhocChartBuilder";
 import { resolveStyle, type BlockStyle } from "@/lib/block-style";
+import { slotsOf } from "@/lib/block-tree";
 import {
   CHART_KINDS,
   FALLBACK_THEME,
   isContainerBlock,
   planNewBlockLayout,
-  resolveContainerConfig,
   resolveReportLayout,
   type BlockLayout,
   type Report,
@@ -243,12 +243,16 @@ function BuilderPage() {
     // đầu chưa kịp lưu) luôn thấy report này đã được xử lý — tránh 2 lần tính song song trên
     // cùng dữ liệu cũ rồi ghi đè nhau ra kết quả trùng vị trí.
     backfilledReports.add(id);
-    const missing = blocks.data.filter((b) => {
+    // Chỉ block cấp gốc (parent_block_id null) cần layout x/y — con của container không có
+    // toạ độ riêng (cha tự bố cục). Phải lọc đúng tập này khi tính, khớp với GridCanvas/
+    // StaticCanvas — nếu tính trên toàn bộ blocks (kể cả con) kết quả sẽ lệch nhau.
+    const rootBlocks = blocks.data.filter((b) => b.parent_block_id == null);
+    const missing = rootBlocks.filter((b) => {
       const raw = b.layout && typeof b.layout === "object" ? (b.layout as Record<string, unknown>) : {};
       return (["lg", "md", "sm"] as const).some((bp) => raw[bp] == null);
     });
     if (missing.length === 0) return;
-    const layouts = resolveReportLayout(blocks.data);
+    const layouts = resolveReportLayout(rootBlocks);
     const changes = missing.map((b) => ({ id: b.id, layout: layouts.get(b.id)! }));
     updateBlockLayout.mutate(changes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,8 +595,7 @@ function BuilderPage() {
                     {selected.block_type === "tabs" ? "Các thẻ" : selected.block_type === "row" ? "Hàng" : "Cột"}
                   </span>
                   {(() => {
-                    const config = resolveContainerConfig(selected);
-                    const slots = "tabs" in config ? config.tabs.map((t) => ({ id: t.id, label: t.label })) : config.sizes.map((_, i) => ({ id: String(i), label: `Ô ${i + 1}` }));
+                    const slots = slotsOf(selected);
                     return (
                       <div className="space-y-2">
                         {slots.map((slot) => (
