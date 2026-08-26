@@ -3,8 +3,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   Monitor,
   Plus,
@@ -34,7 +32,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { StyleInspector } from "@/components/report/StyleInspector";
 import { resolveStyle, type BlockStyle } from "@/lib/block-style";
-import { CHART_KINDS, FALLBACK_THEME, type Report, type ReportBlock, type ReportTheme } from "@/lib/report-types";
+import {
+  CHART_KINDS,
+  FALLBACK_THEME,
+  resolveReportLayout,
+  type BlockLayout,
+  type Report,
+  type ReportBlock,
+  type ReportTheme,
+} from "@/lib/report-types";
+import { isChartBlock } from "@/components/report/BlockCards";
 import { getChartData, listCharts } from "@/lib/superset.functions";
 
 export const Route = createFileRoute("/_authenticated/reports/$id")({
@@ -178,19 +185,30 @@ function BuilderPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["blocks", id] }),
   });
 
-  const move = useMutation({
-    mutationFn: async ({ blockId, dir }: { blockId: string; dir: -1 | 1 }) => {
-      const list = [...(blocks.data ?? [])];
-      const index = list.findIndex((b) => b.id === blockId);
-      const target = index + dir;
-      if (index < 0 || target < 0 || target >= list.length) return;
-      const a = list[index]!;
-      const b = list[target]!;
-      await supabase.from("report_blocks").update({ position: b.position }).eq("id", a.id);
-      await supabase.from("report_blocks").update({ position: a.position }).eq("id", b.id);
+  const updateBlockLayout = useMutation({
+    mutationFn: async (changes: Array<{ id: string; layout: BlockLayout }>) => {
+      await Promise.all(
+        changes.map(({ id: blockId, layout }) =>
+          supabase
+            .from("report_blocks")
+            .update({ layout } as unknown as never)
+            .eq("id", blockId),
+        ),
+      );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["blocks", id] }),
+    onError: (e: Error) => toast.error(e.message),
   });
+
+  const onLayoutCommit = (changes: Array<{ id: string; layout: BlockLayout }>) => {
+    qc.setQueryData(["blocks", id], (old: ReportBlock[] | undefined) =>
+      old?.map((b) => {
+        const change = changes.find((c) => c.id === b.id);
+        return change ? { ...b, layout: change.layout as unknown as ReportBlock["layout"] } : b;
+      }),
+    );
+    updateBlockLayout.mutate(changes);
+  };
 
   const fetcher = useMemo(
     () => async (block: ReportBlock) => {
@@ -209,6 +227,7 @@ function BuilderPage() {
   );
 
   const selectedStyle = resolveStyle(selected?.style_config);
+  const selectedLayout = selected ? (resolveReportLayout(blocks.data ?? []).get(selected.id) ?? null) : null;
 
   const selectedColumns = useQuery({
     queryKey: ["block-columns", selected?.id, selected?.chart_id, report.data?.connection_id],
@@ -406,6 +425,9 @@ function BuilderPage() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             maxWidth={r.max_width_px}
+            editable
+            canEdit={canEdit}
+            onLayoutCommit={onLayoutCommit}
           />
         </main>
 
@@ -416,12 +438,6 @@ function BuilderPage() {
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-sm font-semibold">Khối đã chọn</h2>
                 <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" aria-label="Lên" onClick={() => move.mutate({ blockId: selected.id, dir: -1 })}>
-                    <ChevronUp className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" aria-label="Xuống" onClick={() => move.mutate({ blockId: selected.id, dir: 1 })}>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
                   <Button size="icon" variant="ghost" aria-label="Xoá khối" onClick={() => removeBlock.mutate(selected.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -442,7 +458,7 @@ function BuilderPage() {
                 />
               </div>
 
-              {selected.block_type !== "superset_chart" && (
+              {!isChartBlock(selected) && (
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Nội dung</Label>
                   <Textarea
@@ -458,7 +474,7 @@ function BuilderPage() {
                 </div>
               )}
 
-              {selected.block_type === "superset_chart" && (
+              {isChartBlock(selected) && (
                 <>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Kiểu biểu đồ</Label>
@@ -502,65 +518,81 @@ function BuilderPage() {
               )}
 
               <div className="space-y-2 border-t border-border pt-3">
-                <span className="text-xs font-medium text-muted-foreground">Kích thước theo màn hình</span>
-                {(
-                  [
-                    ["span_lg", "Máy tính"],
-                    ["span_md", "Máy tính bảng"],
-                    ["span_sm", "Điện thoại"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <div key={key} className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      {label}: {selected[key]}/12 cột
-                    </Label>
-                    <Slider
-                      value={[selected[key]]}
-                      min={1}
-                      max={12}
-                      step={1}
-                      disabled={!canEdit}
-                      onValueChange={([v]) =>
-                        qc.setQueryData(["blocks", id], (old: ReportBlock[] | undefined) =>
-                          old?.map((b) => (b.id === selected.id ? { ...b, [key]: v } : b)),
-                        )
-                      }
-                      onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { [key]: v ?? selected[key] } })}
-                    />
-                  </div>
-                ))}
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Chiều cao: {selected.height_px}px</Label>
-                  <Slider
-                    value={[selected.height_px]}
-                    min={120}
-                    max={800}
-                    step={10}
-                    disabled={!canEdit}
-                    onValueChange={([v]) =>
-                      qc.setQueryData(["blocks", id], (old: ReportBlock[] | undefined) =>
-                        old?.map((b) => (b.id === selected.id ? { ...b, height_px: v } : b)),
-                      )
-                    }
-                    onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { height_px: v ?? selected.height_px } })}
-                  />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Vị trí ({viewport === "lg" ? "Máy tính" : viewport === "md" ? "Máy tính bảng" : "Điện thoại"})
+                  </span>
+                  {viewport !== "lg" && canEdit && selectedLayout && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        const lgPos = selectedLayout.lg!;
+                        const nextLayout = { ...selectedLayout, [viewport]: { ...lgPos, w: Math.min(12, lgPos.w) } };
+                        onLayoutCommit([{ id: selected.id, layout: nextLayout }]);
+                      }}
+                    >
+                      Sao chép từ Máy tính
+                    </Button>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Chiều cao trên điện thoại: {selected.height_sm_px}px</Label>
-                  <Slider
-                    value={[selected.height_sm_px]}
-                    min={100}
-                    max={600}
-                    step={10}
-                    disabled={!canEdit}
-                    onValueChange={([v]) =>
-                      qc.setQueryData(["blocks", id], (old: ReportBlock[] | undefined) =>
-                        old?.map((b) => (b.id === selected.id ? { ...b, height_sm_px: v } : b)),
-                      )
-                    }
-                    onValueCommit={([v]) => updateBlock.mutate({ blockId: selected.id, patch: { height_sm_px: v ?? selected.height_sm_px } })}
-                  />
-                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Kéo-thả hoặc kéo cạnh khối trên canvas để đổi vị trí/kích thước, hoặc chỉnh trực tiếp:
+                </p>
+                {selectedLayout && (() => {
+                  const pos = selectedLayout[viewport]!;
+                  const setPos = (patch: Partial<typeof pos>) => {
+                    const nextLayout = { ...selectedLayout, [viewport]: { ...pos, ...patch } };
+                    onLayoutCommit([{ id: selected.id, layout: nextLayout }]);
+                  };
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">X (cột)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={11}
+                          value={pos.x}
+                          disabled={!canEdit}
+                          onChange={(e) => setPos({ x: Number(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Y (hàng)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={pos.y}
+                          disabled={!canEdit}
+                          onChange={(e) => setPos({ y: Number(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Rộng (cột)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={12}
+                          value={pos.w}
+                          disabled={!canEdit}
+                          onChange={(e) => setPos({ w: Math.min(12, Math.max(1, Number(e.target.value) || 1)) })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Cao (hàng)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={pos.h}
+                          disabled={!canEdit}
+                          onChange={(e) => setPos({ h: Math.max(1, Number(e.target.value) || 1) })}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="space-y-2 border-t border-border pt-3">

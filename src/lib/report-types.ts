@@ -57,17 +57,6 @@ export type BlockLayout = Partial<Record<Breakpoint, GridPos>>;
 
 const LAYOUT_ROW_PX = 20;
 
-function fallbackPos(block: ReportBlock, bp: Breakpoint): GridPos {
-  const w = bp === "lg" ? block.span_lg : bp === "md" ? block.span_md : block.span_sm;
-  const heightPx = bp === "sm" ? block.height_sm_px : block.height_px;
-  return {
-    x: 0,
-    y: block.position * Math.max(1, Math.ceil(block.height_px / LAYOUT_ROW_PX)),
-    w: Math.min(12, Math.max(1, w)),
-    h: Math.max(1, Math.ceil(heightPx / LAYOUT_ROW_PX)),
-  };
-}
-
 function isGridPos(v: unknown): v is GridPos {
   if (!v || typeof v !== "object") return false;
   const p = v as Record<string, unknown>;
@@ -80,7 +69,49 @@ export function resolveLayout(raw: unknown, block: ReportBlock): BlockLayout {
   const out: BlockLayout = {};
   for (const bp of ["lg", "md", "sm"] as const) {
     const v = stored[bp];
-    out[bp] = isGridPos(v) ? v : fallbackPos(block, bp);
+    if (isGridPos(v)) {
+      out[bp] = v;
+      continue;
+    }
+    const w = bp === "lg" ? block.span_lg : bp === "md" ? block.span_md : block.span_sm;
+    const heightPx = bp === "sm" ? block.height_sm_px : block.height_px;
+    out[bp] = { x: 0, y: 0, w: Math.min(12, Math.max(1, w)), h: Math.max(1, Math.ceil(heightPx / LAYOUT_ROW_PX)) };
+  }
+  return out;
+}
+
+/**
+ * Suy ra layout cho TOÀN BỘ block của một báo cáo cùng lúc — dùng khi block chưa có `layout`
+ * lưu sẵn (dữ liệu cũ): xếp block theo thứ tự `position` thành các hàng chồng lên nhau, mỗi
+ * hàng cao bằng block cao nhất trong đó, khớp với cách CSS Grid auto-flow cũ đã hiển thị.
+ */
+export function resolveReportLayout(blocks: ReportBlock[]): Map<string, BlockLayout> {
+  const sorted = [...blocks].sort((a, b) => a.position - b.position);
+  const out = new Map<string, BlockLayout>();
+  const cursorY: Record<Breakpoint, number> = { lg: 0, md: 0, sm: 0 };
+  const rowX: Record<Breakpoint, number> = { lg: 0, md: 0, sm: 0 };
+  const rowMaxH: Record<Breakpoint, number> = { lg: 0, md: 0, sm: 0 };
+
+  for (const block of sorted) {
+    const base = resolveLayout(block.layout, block);
+    const layout: BlockLayout = {};
+    for (const bp of ["lg", "md", "sm"] as const) {
+      const stored = block.layout && typeof block.layout === "object" ? (block.layout as Record<string, unknown>)[bp] : undefined;
+      if (isGridPos(stored)) {
+        layout[bp] = stored;
+        continue;
+      }
+      const pos = base[bp]!;
+      if (rowX[bp] + pos.w > 12) {
+        cursorY[bp] += rowMaxH[bp];
+        rowX[bp] = 0;
+        rowMaxH[bp] = 0;
+      }
+      layout[bp] = { x: rowX[bp], y: cursorY[bp], w: pos.w, h: pos.h };
+      rowX[bp] += pos.w;
+      rowMaxH[bp] = Math.max(rowMaxH[bp], pos.h);
+    }
+    out.set(block.id, layout);
   }
   return out;
 }

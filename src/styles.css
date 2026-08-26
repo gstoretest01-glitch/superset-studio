@@ -199,3 +199,16 @@
     display: none;
   }
 }
+
+/* ── Canvas kéo-thả tự do (react-grid-layout) trong Report Builder ── */
+.rs-rgl .react-grid-item.react-grid-placeholder {
+  background: var(--color-primary, #2dd4bf);
+  opacity: 0.18;
+  border-radius: 12px;
+}
+
+.rs-rgl .react-grid-item > .react-resizable-handle::after {
+  border-right-color: var(--color-primary, #2dd4bf);
+  border-bottom-color: var(--color-primary, #2dd4bf);
+  opacity: 0.7;
+}
